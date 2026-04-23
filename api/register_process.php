@@ -1,8 +1,4 @@
 <?php
-/**
- * POST /api/register_process.php
- * FIX: display_errors OFF.
- */
 ini_set('display_errors', '0');
 
 require __DIR__ . "/../config/db.php";

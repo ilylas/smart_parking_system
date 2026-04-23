@@ -1,9 +1,4 @@
 <?php
-/**
- * POST /api/login_process.php
- * FIX: display_errors OFF.
- * FIX: Session started and user stored server-side.
- */
 ini_set('display_errors', '0');
 
 require __DIR__ . "/../config/db.php";
