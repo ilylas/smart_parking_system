@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartPark — Register</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/main.css">
+</head>
+<body class="register-page">
+
+<div class="bg-mesh"></div>
+
+<div class="register-wrap">
+  <div class="corner tl"></div>
+  <div class="corner tr"></div>
+  <div class="corner bl"></div>
+  <div class="corner br"></div>
+
+  <a href="login.html" class="back-link">← Back to login</a>
+
+  <div class="form-tag">// New Account</div>
+  <div class="form-title">Register</div>
+  <div class="form-desc">Create your SmartPark account</div>
+
+  <div class="alert" id="alert"></div>
+
+  <div class="field">
+    <label>Full Name</label>
+    <input type="text" id="name" placeholder="John Doe">
+  </div>
+  <div class="field">
+    <label>Email Address</label>
+    <input type="email" id="email" placeholder="john@example.com">
+  </div>
+  <div class="field">
+    <label>Password</label>
+    <input type="password" id="password" placeholder="Min. 6 characters" oninput="checkStrength(this.value)">
+    <div class="strength-bar"><div class="strength-fill" id="strengthFill"></div></div>
+    <div class="strength-text" id="strengthText"></div>
+  </div>
+  <div class="field">
+    <label>Confirm Password</label>
+    <input type="password" id="confirm" placeholder="Repeat password">
+  </div>
+
+  <button class="btn-primary" id="regBtn" onclick="doRegister()">CREATE ACCOUNT →</button>
+
+  <div class="link-row" style="margin-top:20px">
+    Already have an account? <a href="login.html">Sign in</a>
+  </div>
+</div>
+
+<script>
+function checkStrength(val) {
+  const fill = document.getElementById('strengthFill');
+  const text = document.getElementById('strengthText');
+  let score = 0;
+  if (val.length >= 6)          score++;
+  if (val.length >= 10)         score++;
+  if (/[A-Z]/.test(val))        score++;
+  if (/[0-9]/.test(val))        score++;
+  if (/[^A-Za-z0-9]/.test(val)) score++;
+
+  const levels = [
+    { w: '0%',   c: 'transparent', t: '' },
+    { w: '25%',  c: '#ff3b5c',     t: 'Weak' },
+    { w: '50%',  c: '#ff6b35',     t: 'Fair' },
+    { w: '75%',  c: '#ffd700',     t: 'Good' },
+    { w: '100%', c: '#00e5a0',     t: 'Strong' },
+  ];
+  const lvl = levels[Math.min(score, 4)];
+  fill.style.width      = lvl.w;
+  fill.style.background = lvl.c;
+  text.textContent      = lvl.t;
+}
+
+async function doRegister() {
+  const btn     = document.getElementById('regBtn');
+  const name    = document.getElementById('name').value.trim();
+  const email   = document.getElementById('email').value.trim();
+  const pass    = document.getElementById('password').value;
+  const confirm = document.getElementById('confirm').value;
+
+  if (!name || !email || !pass)  { showAlert('All fields are required.', 'error'); return; }
+  if (pass !== confirm)           { showAlert('Passwords do not match.', 'error'); return; }
+  if (pass.length < 6)            { showAlert('Password must be at least 6 characters.', 'error'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'CREATING...';
+
+  try {
+    const res  = await fetch('../api/register_process.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, password: pass })
+    });
+
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); }
+    catch { showAlert('Unexpected server response.', 'error'); resetBtn(); return; }
+
+    if (data.success) {
+      showAlert('Account created! Redirecting to login…', 'success');
+      setTimeout(() => window.location.href = 'login.html', 1500);
+    } else {
+      showAlert(data.message || 'Registration failed.', 'error');
+      resetBtn();
+    }
+  } catch {
+    showAlert('Network error. Please retry.', 'error');
+    resetBtn();
+  }
+}
+
+function resetBtn() {
+  const btn = document.getElementById('regBtn');
+  btn.disabled = false;
+  btn.textContent = 'CREATE ACCOUNT →';
+}
+
+function showAlert(msg, type) {
+  const el = document.getElementById('alert');
+  el.textContent = msg;
+  el.className = 'alert ' + type + ' show';
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Enter') doRegister(); });
+</script>
+</body>
+</html>
