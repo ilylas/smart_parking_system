@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartPark — Login</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/main.css">
+</head>
+<body class="auth-page">
+
+<!-- Left decorative panel -->
+<div class="auth-left">
+  <div class="auth-left-photo"></div>
+  <div class="grid-bg"></div>
+  <div class="scan-line"></div>
+  <div class="auth-left-content">
+    <div class="logo-ring">
+      <span class="logo-icon">🅿</span>
+    </div>
+    <div class="brand-name">SmartPark</div>
+    <div class="brand-sub">AI-Powered Parking System</div>
+    <div class="stats-row">
+      <div>
+        <span class="stat-num" id="liveTotal">—</span>
+        <span class="stat-label">Total Spots</span>
+      </div>
+      <div>
+        <span class="stat-num" id="liveFree">—</span>
+        <span class="stat-label">Available</span>
+      </div>
+      <div>
+        <span class="stat-num" id="liveAI">—</span>
+        <span class="stat-label">AI Predict</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Right form panel -->
+<div class="auth-right">
+  <div class="corner tl"></div>
+  <div class="corner tr"></div>
+  <div class="corner bl"></div>
+  <div class="corner br"></div>
+
+  <div class="form-tag">// Access Portal</div>
+  <div class="form-title">Sign In</div>
+  <div class="form-desc">Enter your credentials to access the system</div>
+
+  <div class="alert" id="alert"></div>
+
+  <div class="field">
+    <label>Email Address</label>
+    <input type="email" id="email" placeholder="user@example.com" autocomplete="email">
+  </div>
+  <div class="field">
+    <label>Password</label>
+    <input type="password" id="password" placeholder="••••••••" autocomplete="current-password">
+  </div>
+
+  <button class="btn-primary" id="loginBtn" onclick="doLogin()">CONNECT →</button>
+
+  <div class="divider">or</div>
+
+  <div class="link-row">
+    No account? <a href="register.html">Create one</a>
+  </div>
+</div>
+
+<script>
+async function doLogin() {
+  const btn   = document.getElementById('loginBtn');
+  const email = document.getElementById('email').value.trim();
+  const pass  = document.getElementById('password').value;
+
+  clearAlert();
+  if (!email || !pass) { showAlert('Please fill in all fields.', 'error'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'CONNECTING...';
+
+  try {
+    const res  = await fetch('../api/login_process.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password: pass })
+    });
+
+    // FIX: always read as text first, then parse — prevents crash if PHP returns HTML error
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); }
+    catch { showAlert('Unexpected server response. Check PHP logs.', 'error'); resetBtn(); return; }
+
+    if (data.success) {
+      localStorage.setItem('user', JSON.stringify(data.user));
+      showAlert('Access granted. Redirecting…', 'success');
+      setTimeout(() => {
+        window.location.href = data.user.role === 'admin' ? 'admin.html' : 'home.html';
+      }, 800);
+    } else {
+      showAlert(data.message || 'Authentication failed.', 'error');
+      resetBtn();
+    }
+  } catch {
+    showAlert('Network error. Please retry.', 'error');
+    resetBtn();
+  }
+}
+
+function resetBtn() {
+  const btn = document.getElementById('loginBtn');
+  btn.disabled = false;
+  btn.textContent = 'CONNECT →';
+}
+
+function showAlert(msg, type) {
+  const el = document.getElementById('alert');
+  el.textContent = msg;
+  el.className = 'alert ' + type + ' show';
+}
+
+function clearAlert() {
+  document.getElementById('alert').className = 'alert';
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+// Live stats for left panel (fails silently — user not logged in yet)
+async function loadPublicStats() {
+  try {
+    const res  = await fetch('../api/stats.php');
+    const text = await res.text();
+    const data = JSON.parse(text);
+    if (data.success) {
+      document.getElementById('liveTotal').textContent = data.total;
+      document.getElementById('liveFree').textContent  = data.free;
+      document.getElementById('liveAI').textContent    =
+        (data.ai?.prediction?.predicted_occupancy ?? '—') + (data.ai ? '%' : '');
+    }
+  } catch { /* leave dashes — not logged in */ }
+}
+loadPublicStats();
+</script>
+</body>
+</html>
