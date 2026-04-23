@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartPark — Dashboard</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/main.css">
+
+</head>
+<body class="app-layout">
+
+<nav class="sidebar">
+  <div class="sidebar-header">
+    <div>
+      <div class="logo-name">SmartPark</div>
+      <div class="logo-sub">USER</div>
+    </div>
+  </div>
+
+  <div class="nav">
+    <a class="nav-item active" href="home.html"> Dashboard</a>
+    <a class="nav-item" href="#" onclick="scrollToPlaces();return false;"> Parking Spots</a>
+    <a class="nav-item" href="my_bookings.html"> My Bookings</a>
+  </div>
+
+  <div class="sidebar-footer">
+    <div class="user-avatar" id="userAvatar">?</div>
+    <div>
+      <div class="user-name" id="sidebarName">…</div>
+      <div class="user-role" style="color:var(--muted)">User</div>
+    </div>
+    <button class="logout-btn" onclick="logout()"><icon >/logout</icon></button>
+  </div>
+</nav>
+
+<main class="main">
+
+  <div class="page-header">
+    <div>
+      <div class="page-title">Welcome</div>
+      <div class="page-sub" id="greeting">Loading…</div>
+    </div>
+  </div>
+
+  <div class="hero-banner">
+    <div class="hero-banner-img" style="background-image:url('https://images.unsplash.com/photo-1506521781263-d8422e82f27a?w=1400&q=80')"></div>
+    <div class="hero-banner-overlay"></div>
+    <div class="hero-banner-content">
+      <div>
+        <div class="hero-banner-title">Smart Parking System</div>
+        <div class="hero-banner-sub">Find and reserve your spot easily</div>
+      </div>
+      <div class="hero-banner-badge">🟢 OPEN</div>
+    </div>
+  </div>
+
+  <div class="section-header">
+    <div>
+      <div class="section-title">Parking Spots</div>
+      <div class="section-sub">Click a free spot to reserve</div>
+    </div>
+    <button class="btn btn-ghost" onclick="loadPlaces()">↻ Refresh</button>
+  </div>
+
+  <div class="filter-row">
+    <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
+    <button class="filter-btn" onclick="setFilter('libre', this)">Available</button>
+    <button class="filter-btn" onclick="setFilter('occupied', this)">Occupied</button>
+  </div>
+
+  <div class="places-grid" id="placesGrid">
+    <div class="empty-state">
+      <div class="empty-text">Loading spots…</div>
+    </div>
+  </div>
+
+</main>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+
+    <div class="modal-title">Reserve <span id="modalNum"></span></div>
+
+    <div class="alert" id="modalAlert"></div>
+
+    <div class="field">
+      <label>Start</label>
+      <input type="datetime-local" id="startTime">
+    </div>
+
+    <div class="field">
+      <label>End</label>
+      <input type="datetime-local" id="endTime" oninput="calcPrice()">
+    </div>
+
+    <div class="price-preview">
+      <span>Price</span>
+      <span id="priceVal">—</span>
+    </div>
+
+    <button class="btn-confirm" onclick="confirmReservation()">Confirm</button>
+  </div>
+</div>
+
+<script>
+const RATE = 2.5;
+let user, placeId, filter='all';
+
+window.onload = () => {
+  user = JSON.parse(localStorage.getItem('user'));
+  if (!user) return location='login.html';
+
+  sidebarName.textContent = user.name;
+  userAvatar.textContent = user.name[0].toUpperCase();
+
+  greeting.textContent = "Hello " + user.name;
+
+  const now = new Date();
+  const later = new Date(now.getTime()+2*3600000);
+
+  startTime.value = toLocal(now);
+  endTime.value = toLocal(later);
+
+  loadPlaces();
+};
+
+function toLocal(d){
+  return new Date(d.getTime()-d.getTimezoneOffset()*60000)
+         .toISOString().slice(0,16);
+}
+
+async function api(url, opts={}){
+  const res = await fetch(url, opts);
+  return res.json();
+}
+
+async function loadPlaces(){
+  const url = filter==='all' ? '../api/getPlaces.php'
+            : `../api/getPlaces.php?status=${filter}`;
+
+  const data = await api(url);
+  if(!data.success) return;
+
+  const grid = placesGrid;
+
+  grid.innerHTML = data.places.map(p=>`
+    <div class="place-card ${p.status}"
+      ${p.status==='libre' ? `onclick="openModal(${p.id},'${p.numero}')"`:''}>
+      <div class="place-num">${p.numero}</div>
+      <div class="place-status ${p.status}">
+        ${p.status==='libre'?'Available':'Occupied'}
+      </div>
+      <div class="place-priority">Priority ${p.priorite}</div>
+    </div>
+  `).join('');
+}
+
+function setFilter(f,btn){
+  filter=f;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  loadPlaces();
+}
+
+function scrollToPlaces(){
+  placesGrid.scrollIntoView({behavior:'smooth'});
+}
+
+function openModal(id,num){
+  placeId=id;
+  modalNum.textContent=num;
+  overlay.classList.add('open');
+}
+
+function closeModal(){
+  overlay.classList.remove('open');
+}
+
+function calcPrice(){
+  const s=startTime.value,e=endTime.value;
+  if(s&&e){
+    const h=(new Date(e)-new Date(s))/3600000;
+    priceVal.textContent = h>0 ? (h*RATE).toFixed(2)+' TND':'—';
+  }
+}
+
+async function confirmReservation(){
+  const data = await api('../api/reserve.php',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      user_id:user.id,
+      place_id:placeId,
+      start_time:startTime.value.replace('T',' ')+':00',
+      end_time:endTime.value.replace('T',' ')+':00'
+    })
+  });
+
+  modalAlert.textContent = data.success
+    ? 'Reservation done '
+    : 'Error ';
+}
+
+function logout(){
+  localStorage.removeItem('user');
+  location='login.html';
+}
+</script>
+
+</body>
+</html>
