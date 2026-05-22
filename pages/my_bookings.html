@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Bookings</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600&family=DM+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/main.css">
+
+<style>
+.table-box {
+  background: #1e293b;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th, td {
+  padding: 12px;
+  text-align: center;
+}
+
+th {
+  background: #020617;
+  color: #94a3b8;
+}
+
+tr:nth-child(even) {
+  background: #0f172a;
+}
+
+.status {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.active { background: #22c55e; color: #022c22; }
+.upcoming { background: #3b82f6; }
+.completed { background: #64748b; }
+.cancelled { background: #ef4444; }
+
+.empty {
+  text-align: center;
+  padding: 30px;
+  color: #94a3b8;
+}
+</style>
+</head>
+
+<body class="app-layout">
+
+<!-- Sidebar -->
+<nav class="sidebar">
+  <div class="sidebar-header">
+    <div class="logo-dot">🅿</div>
+    <div>
+      <div class="logo-name">SmartPark</div>
+      <div class="logo-sub">USER</div>
+    </div>
+  </div>
+
+  <div class="nav">
+    <a class="nav-item active" href="home.html">⬛ Dashboard</a>
+    <a class="nav-item" href="#" onclick="scrollToPlaces();return false;">🅿 Parking Spots</a>
+    <a class="nav-item" href="my_bookings.html">📋 My Bookings</a>
+  </div>
+
+  <div class="sidebar-footer">
+    <div class="user-avatar" id="userAvatar">?</div>
+    <div>
+      <div class="user-name" id="sidebarName">…</div>
+      <div class="user-role" style="color:var(--muted)">User</div>
+    </div>
+    <button class="logout-btn" onclick="logout()">⏻</button>
+  </div>
+</nav>
+
+
+<!-- Main -->
+<main class="main">
+
+  <div class="page-header">
+    <div>
+      <div class="page-title">My Bookings</div>
+      <div class="page-sub">Your reservations history</div>
+    </div>
+  </div>
+
+  <div class="table-box">
+    <table>
+      <thead>
+        <tr>
+          <th>Spot</th>
+          <th>Start</th>
+          <th>End</th>
+          <th>Price</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="bookingsTable">
+        <tr><td colspan="5" class="empty">Loading...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</main>
+
+<script>
+const user = JSON.parse(localStorage.getItem('user'));
+if (!user) location = 'login.html';
+
+// Sidebar user info
+sidebarName.textContent = user.name;
+userAvatar.textContent  = user.name[0].toUpperCase();
+
+// Load bookings
+async function loadBookings() {
+  const res  = await fetch('../api/my_bookings.php?user_id=' + user.id);
+  const data = await res.json();
+
+  if (!data.success || !data.bookings.length) {
+    bookingsTable.innerHTML = `<tr><td colspan="5" class="empty">No bookings found</td></tr>`;
+    return;
+  }
+
+  bookingsTable.innerHTML = data.bookings.map(b => `
+    <tr>
+      <td><b>${b.numero}</b></td>
+      <td>${formatDate(b.start_time)}</td>
+      <td>${formatDate(b.end_time)}</td>
+      <td>${parseFloat(b.price).toFixed(2)} TND</td>
+      <td><span class="status ${b.computed_status}">${b.computed_status}</span></td>
+    </tr>
+  `).join('');
+}
+
+function formatDate(d) {
+  return new Date(d).toLocaleString();
+}
+
+function logout() {
+  localStorage.removeItem('user');
+  location = 'login.html';
+}
+
+loadBookings();
+</script>
+
+</body>
+</html>

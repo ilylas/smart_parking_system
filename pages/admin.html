@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartPark — Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/main.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body class="app-layout">
+
+<nav class="sidebar">
+  <div class="sidebar-header">
+    <div class="logo-badge">0</div>
+    <div><div class="logo-name">SmartPark</div><div class="admin-tag">ADMIN</div></div>
+  </div>
+  <div class="nav">
+    <div class="nav-section">Overview</div>
+    <a class="nav-item active" onclick="showTab('overview',this)"><span class="nav-icon">⬛</span> Dashboard</a>
+    <a class="nav-item" onclick="showTab('aiInsights',this)"><span class="nav-icon"></span> AI Insights</a>
+    <div class="nav-section">Management</div>
+    <a class="nav-item" onclick="showTab('places',this)"><span class="nav-icon"></span> Parking Spots <span class="nav-badge" id="placesBadge">…</span></a>
+    <a class="nav-item" onclick="showTab('reservations',this)"><span class="nav-icon"></span> Reservations</a>
+  </div>
+  <div class="sidebar-footer">
+    <div class="user-dot" id="adminAvatar">A</div>
+    <div><div class="user-name" id="adminName">Admin</div><div class="user-role">Administrator</div></div>
+    <button class="logout-btn" onclick="logout()" title="Logout">⏻</button>
+  </div>
+</nav>
+
+<main class="main">
+
+  <!-- Overview -->
+  <div class="tab-content active" id="tab-overview">
+    <div class="page-header">
+      <div><div class="page-title">Control Center</div><div class="page-sub">Real-time parking management overview</div></div>
+      <button class="btn btn-accent" onclick="loadAll()">↻ Refresh</button>
+    </div>
+    <div class="hero-banner">
+      <div class="hero-banner-img" style="background-image:url('https://images.unsplash.com/photo-1590674899484-d5640e854abe?w=1400&q=80')"></div>
+      <div class="hero-banner-overlay"></div>
+      <div class="hero-banner-content">
+        <div><div class="hero-banner-title">Admin Control Center</div><div class="hero-banner-sub">Full visibility — manage spots, reservations and AI predictions</div></div>
+        <div class="hero-banner-badge">ADMIN ACCESS</div>
+      </div>
+    </div>
+    <div class="kpi-grid">
+      <div class="kpi c1" style="animation-delay:.05s"><div class="kpi-label">Total Spots</div><div class="kpi-val" id="kTotal">—</div><div class="kpi-sub">configured</div></div>
+      <div class="kpi c2" style="animation-delay:.1s"><div class="kpi-label">Available</div><div class="kpi-val" id="kFree" style="color:var(--accent3)">—</div><div class="kpi-sub">ready to book</div></div>
+      <div class="kpi c3" style="animation-delay:.15s"><div class="kpi-label">Occupied</div><div class="kpi-val" id="kOcc" style="color:var(--danger)">—</div><div class="kpi-sub">in use now</div></div>
+      <div class="kpi c4" style="animation-delay:.2s"><div class="kpi-label">Occupancy</div><div class="kpi-val" id="kRate" style="color:var(--accent2)">—</div><div class="kpi-sub">of total capacity</div></div>
+    </div>
+    <div class="ai-widget">
+      <div style="flex:1">
+        <div class="ai-tag">// AI ENGINE — LIVE</div>
+        <div class="ai-label" id="aiWidgetLabel">Analysing…</div>
+        <div class="ai-desc" id="aiWidgetDesc">Loading prediction model output…</div>
+      </div>
+      <div class="ai-sep"></div>
+      <div class="ai-stat"><div class="ai-stat-val" id="aiWidgetPct" style="color:var(--accent)">—</div><div class="ai-stat-sub">predicted load</div></div>
+      <div class="ai-sep"></div>
+      <div class="ai-stat"><div class="ai-stat-val" id="aiWidgetReco" style="color:var(--accent3)">—</div><div class="ai-stat-sub">recommended spot</div></div>
+    </div>
+    <div class="chart-row">
+      <div class="chart-card"><div class="chart-title">Live Occupancy</div><div class="chart-sub">Current distribution</div><canvas id="adminDonut" height="200"></canvas></div>
+      <div class="chart-card"><div class="chart-title">7-Day Reservations</div><div class="chart-sub">Activity trend</div><canvas id="adminBar" height="200"></canvas></div>
+    </div>
+  </div>
+
+  <!-- AI Insights -->
+  <div class="tab-content" id="tab-aiInsights">
+    <div class="page-header">
+      <div><div class="page-title">AI Insights</div><div class="page-sub">Model predictions and occupancy analytics</div></div>
+    </div>
+    <div class="chart-card" style="margin-bottom:24px">
+      <div class="chart-title">Hourly Occupancy Forecast (Today)</div>
+      <div class="chart-sub">AI-predicted % occupancy by hour</div>
+      <canvas id="forecastChart" height="150"></canvas>
+    </div>
+    <div class="add-form">
+      <div class="add-form-title">🤖 AI Model Details</div>
+      <div id="aiDetails" style="color:var(--text2);font-size:.8rem;line-height:1.8">Loading…</div>
+    </div>
+  </div>
+
+  <!-- Places -->
+  <div class="tab-content" id="tab-places">
+    <div class="page-header">
+      <div><div class="page-title">Parking Spots</div><div class="page-sub">Add, remove and monitor all parking spots</div></div>
+    </div>
+    <div class="add-form">
+      <div class="add-form-title">➕ Add New Spot</div>
+      <div class="alert" id="addAlert"></div>
+      <div class="form-row">
+        <div class="field"><label>Spot Number / Name</label><input type="text" id="newNumero" placeholder="e.g. A-12 or VIP-3"></div>
+        <div class="field"><label>Priority (1 = closest)</label><input type="number" id="newPriorite" value="1" min="1" max="99"></div>
+        <button class="btn btn-accent" onclick="addPlace()" style="padding:11px 20px;margin-bottom:18px">ADD SPOT</button>
+      </div>
+    </div>
+    <div class="mgmt-bar">
+      <input class="search-box" id="placeSearch" placeholder="Search by number…" oninput="filterTable()">
+      <button class="btn btn-ghost" onclick="loadPlacesTab()">↻ Refresh</button>
+    </div>
+    <table class="data-table" id="placesTable">
+      <thead><tr><th></th><th>#</th><th>Spot</th><th>Status</th><th>Priority</th><th>Actions</th></tr></thead>
+      <tbody id="placesBody"><tr class="empty-row"><td colspan="6">Loading…</td></tr></tbody>
+    </table>
+  </div>
+
+  <!-- Reservations -->
+  <div class="tab-content" id="tab-reservations">
+    <div class="page-header">
+      <div><div class="page-title">Reservations</div><div class="page-sub">All active and past reservations</div></div>
+    </div>
+    <table class="data-table">
+      <thead><tr><th>ID</th><th>User</th><th>Spot</th><th>Start</th><th>End</th><th>Price</th><th>Status</th></tr></thead>
+      <tbody id="reservationsBody"><tr class="empty-row"><td colspan="7">Loading…</td></tr></tbody>
+    </table>
+  </div>
+
+</main>
+
+<script>
+let adminDonut, adminBar, forecastChart, allPlacesData = [];
+
+const PHOTOS = [
+  'https://images.unsplash.com/photo-1555215695-3004980ad54e?w=120&q=60',
+  'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=120&q=60',
+  'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?w=120&q=60',
+  'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?w=120&q=60',
+  'https://images.unsplash.com/photo-1590674899484-d5640e854abe?w=120&q=60',
+];
+
+async function safeFetch(url, opts) {
+  try {
+    const text = await (await fetch(url, opts)).text();
+    try { return JSON.parse(text); } catch { return { success: false }; }
+  } catch { return { success: false }; }
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  const user = JSON.parse(localStorage.getItem('user'));
+  if (!user) return window.location.href = 'login.html';
+  if (user.role !== 'admin') return window.location.href = 'home.html';
+  document.getElementById('adminName').textContent   = user.name;
+  document.getElementById('adminAvatar').textContent = user.name[0].toUpperCase();
+  loadAll();
+});
+
+function loadAll() {
+  return Promise.all([loadStats(), loadPlacesTab(), loadAIForecast(), loadReservations()]);
+}
+
+async function loadStats() {
+  const { success, total, occupied, free, ai, history } = await safeFetch('../api/stats.php');
+  if (!success) return;
+
+  const rate = total > 0 ? Math.round(occupied / total * 100) : 0;
+  document.getElementById('kTotal').textContent = total;
+  document.getElementById('kFree').textContent  = free;
+  document.getElementById('kOcc').textContent   = occupied;
+  document.getElementById('kRate').textContent  = rate + '%';
+  document.getElementById('placesBadge').textContent = total;
+
+  const p = ai?.prediction;
+  if (p) {
+    document.getElementById('aiWidgetLabel').textContent = `${p.emoji} ${p.label}`;
+    document.getElementById('aiWidgetDesc').textContent  = `Predicted ${p.predicted_occupancy}% occupancy this hour (${p.is_weekend ? 'weekend' : 'weekday'}).`;
+    document.getElementById('aiWidgetPct').textContent   = p.predicted_occupancy + '%';
+    document.getElementById('aiDetails').innerHTML = `
+      <b>Model type:</b> Weighted blended lookup (dataset + live DB)<br>
+      <b>Features:</b> Hour of day, day of week, is_weekend, current occupancy<br>
+      <b>Current hour:</b> ${p.hour}:00 — <b>Weekend:</b> ${p.is_weekend ? 'Yes' : 'No'}<br>
+      <b>Predicted occupancy:</b> <span style="color:var(--accent)">${p.predicted_occupancy}%</span><br>
+      <b>Status label:</b> ${p.emoji} ${p.label}<br><br>
+      <span style="color:var(--muted)">To upgrade: train a scikit-learn RandomForest on historical data and expose it via a Python Flask /predict endpoint called from stats.php.</span>
+    `;
+  }
+
+  document.getElementById('aiWidgetReco').textContent = ai?.recommended_place?.numero ?? 'None';
+
+  // Charts
+  const mk = (type, id, data, opts) => {
+    const prev = { adminDonut, adminBar }[id];
+    if (prev) prev.destroy();
+    const chart = new Chart(document.getElementById(id).getContext('2d'), { type, data, options: opts });
+    if (id === 'adminDonut') adminDonut = chart;
+    if (id === 'adminBar')   adminBar   = chart;
+  };
+
+  const gridColor = 'rgba(255,255,255,.03)';
+  const tickStyle = { color: '#7a9ab4', font: { family: 'DM Mono', size: 10 } };
+
+  adminDonut?.destroy();
+  adminDonut = new Chart(document.getElementById('adminDonut').getContext('2d'), {
+    type: 'doughnut',
+    data: { labels: ['Occupied','Free'], datasets: [{ data: [occupied, free], backgroundColor: ['rgba(255,59,92,.7)','rgba(0,229,160,.6)'], borderColor: ['#ff3b5c','#00e5a0'], borderWidth: 1 }] },
+    options: { responsive: true, cutout: '68%', plugins: { legend: { position: 'bottom', labels: { color: '#7a9ab4', font: { family: 'DM Mono' }, padding: 14 } } } }
+  });
+
+  adminBar?.destroy();
+  adminBar = new Chart(document.getElementById('adminBar').getContext('2d'), {
+    type: 'bar',
+    data: { labels: (history||[]).map(h=>h.day), datasets: [{ label:'Reservations', data: (history||[]).map(h=>h.count), backgroundColor:'rgba(0,212,255,.35)', borderColor:'#00d4ff', borderWidth:1, borderRadius:4 }] },
+    options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { grid: { color: gridColor }, ticks: tickStyle }, y: { grid: { color: gridColor }, ticks: tickStyle, beginAtZero: true, precision: 0 } } }
+  });
+}
+
+function loadAIForecast() {
+  const isWeekend = [6,7].includes(new Date().getDay());
+  const hour      = new Date().getHours();
+  const chartData = isWeekend
+    ? [15,15,15,15,15,15,15,15,15,15,40,40,60,60,60,70,70,88,88,88,92,92,92,92]
+    : [10,10,10,10,10,10,10,10,30,30,65,65,88,88,50,50,45,45,25,25,25,25,25,25];
+
+  forecastChart?.destroy();
+  forecastChart = new Chart(document.getElementById('forecastChart').getContext('2d'), {
+    type: 'line',
+    data: {
+      labels: Array.from({length:24}, (_,i) => i+':00'),
+      datasets: [
+        { label:'Predicted %', data: chartData, borderColor:'#00d4ff', backgroundColor:'rgba(0,212,255,.08)', fill:true, tension:.4, pointRadius:3, pointBackgroundColor:'#00d4ff' },
+        { label:'Now', data: Array.from({length:24}, (_,i) => i===hour ? chartData[i] : null), pointRadius:8, pointBackgroundColor:'#ff6b35', showLine:false }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color:'#7a9ab4', font:{ family:'DM Mono', size:10 } } } },
+      scales: {
+        x: { grid:{ color:'rgba(255,255,255,.03)' }, ticks:{ color:'#7a9ab4', font:{ family:'DM Mono', size:10 } } },
+        y: { grid:{ color:'rgba(255,255,255,.03)' }, ticks:{ color:'#7a9ab4', font:{ family:'DM Mono', size:10 }, callback: v => v+'%' }, min:0, max:100 }
+      }
+    }
+  });
+}
+
+async function loadPlacesTab() {
+  const data = await safeFetch('../api/getPlaces.php');
+  if (!data.success) return;
+  allPlacesData = data.places;
+  renderPlacesTable(allPlacesData);
+}
+
+function renderPlacesTable(places) {
+  document.getElementById('placesBody').innerHTML = !places.length
+    ? '<tr class="empty-row"><td colspan="6">No spots configured. Add one above.</td></tr>'
+    : places.map((p,i) => `
+      <tr>
+        <td><img src="${PHOTOS[i%PHOTOS.length]}" style="width:52px;height:36px;object-fit:cover;border-radius:5px;opacity:${p.status==='occupied'?.35:.75}"></td>
+        <td style="color:var(--muted)">${i+1}</td>
+        <td style="font-family:Syne,sans-serif;font-weight:700">${p.numero}</td>
+        <td><span class="status-pill ${p.status}">${p.status==='libre'?'Available':'Occupied'}</span></td>
+        <td style="color:var(--text2)">${p.priorite}</td>
+        <td><button class="btn btn-danger" onclick="deletePlace(${p.id},'${p.numero}')" ${p.status==='occupied'?'disabled title="Active reservation"':''}>Delete</button></td>
+      </tr>`).join('');
+}
+
+function filterTable() {
+  const q = document.getElementById('placeSearch').value.toLowerCase();
+  renderPlacesTable(allPlacesData.filter(p => p.numero.toLowerCase().includes(q)));
+}
+
+async function addPlace() {
+  const numero   = document.getElementById('newNumero').value.trim();
+  const priorite = parseInt(document.getElementById('newPriorite').value) || 1;
+  if (!numero) return showAddAlert('Spot number is required.', 'error');
+
+  const data = await safeFetch('../api/addPlace.php', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ numero, priorite })
+  });
+
+  if (data.success) {
+    showAddAlert('Spot ' + numero + ' added!', 'success');
+    document.getElementById('newNumero').value   = '';
+    document.getElementById('newPriorite').value = '1';
+    loadPlacesTab(); loadStats();
+  } else {
+    showAddAlert(data.message || 'Error adding spot.', 'error');
+  }
+}
+
+async function deletePlace(id, numero) {
+  if (!confirm(`Delete spot ${numero}? This cannot be undone.`)) return;
+  const data = await safeFetch('../api/deletePlace.php', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id })
+  });
+  if (data.success) { loadPlacesTab(); loadStats(); }
+  else alert(data.message || 'Could not delete spot.');
+}
+
+function showAddAlert(msg, type) {
+  const el = document.getElementById('addAlert');
+  el.textContent = msg; 
+  el.className = 'alert ' + type + ' show';
+  setTimeout(() => el.className = 'alert', 3000);
+}
+
+async function loadReservations() {
+  const data  = await safeFetch('../api/get_reservations.php');
+  const tbody = document.getElementById('reservationsBody');
+  if (!data.success || !data.reservations?.length) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="7">No reservations found.</td></tr>'; return;
+  }
+  tbody.innerHTML = data.reservations.map(r => `
+    <tr>
+      <td style="color:var(--muted)">#${r.id}</td>
+      <td>${r.user_name}<br><span style="color:var(--muted);font-size:.7rem">${r.user_email}</span></td>
+      <td style="font-family:Syne,sans-serif;font-weight:700">${r.place_numero}</td>
+      <td style="font-size:.75rem">${r.start_time}</td>
+      <td style="font-size:.75rem">${r.end_time}</td>
+      <td style="color:var(--accent)">${parseFloat(r.price).toFixed(2)} TND</td>
+      <td><span class="status-pill ${r.status==='active'?'libre':'occupied'}">${r.status}</span></td>
+    </tr>`).join('');
+}
+
+function showTab(id, el) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  el?.classList.add('active');
+}
+
+function logout() { localStorage.removeItem('user'); window.location.href = 'login.html'; }
+
+setInterval(loadAll, 30000);
+</script>
+</body>
+</html>

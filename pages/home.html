@@ -7,7 +7,30 @@
 
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/css/main.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<style>
+  #map {
+  position: relative;
+  z-index: 1;
+}
 
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+
+  display: none;
+  align-items: center;
+  justify-content: center;
+
+  z-index: 99999;
+}
+
+.overlay.open {
+  display: flex;
+}
+</style>
 </head>
 <body class="app-layout">
 
@@ -56,25 +79,34 @@
     </div>
   </div>
 
-  <div class="section-header">
-    <div>
-      <div class="section-title">Parking Spots</div>
-      <div class="section-sub">Click a free spot to reserve</div>
-    </div>
-    <button class="btn btn-ghost" onclick="loadPlaces()">↻ Refresh</button>
+<div class="section-header">
+  <div>
+    <div class="section-title">Parking Location</div>
+    <div class="section-sub">Find the parking on map</div>
   </div>
+</div>
 
-  <div class="filter-row">
-    <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
-    <button class="filter-btn" onclick="setFilter('libre', this)">Available</button>
-    <button class="filter-btn" onclick="setFilter('occupied', this)">Occupied</button>
-  </div>
+<div id="map" style="width:100%;height:350px;border-radius:12px;margin-bottom:20px;"></div>
 
-  <div class="places-grid" id="placesGrid">
-    <div class="empty-state">
-      <div class="empty-text">Loading spots…</div>
-    </div>
+<div class="section-header">
+  <div>
+    <div class="section-title">Parking Spots</div>
+    <div class="section-sub">Click a free spot to reserve</div>
   </div>
+  <button class="btn btn-ghost" onclick="loadPlaces()">↻ Refresh</button>
+</div>
+
+<div class="filter-row">
+  <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
+  <button class="filter-btn" onclick="setFilter('libre', this)">Available</button>
+  <button class="filter-btn" onclick="setFilter('occupied', this)">Occupied</button>
+</div>
+
+<div class="places-grid" id="placesGrid">
+  <div class="empty-state">
+    <div class="empty-text">Loading spots…</div>
+  </div>
+</div>
 
 </main>
 
@@ -108,7 +140,39 @@
 <script>
 const RATE = 2.5;
 let user, placeId, filter='all';
+let selectedLat = null;
+let selectedLng = null;
+let selectedMarker = null;
 
+function initMap(){
+  const map = L.map('map').setView([36.8065, 10.1815], 15);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap'
+  }).addTo(map);
+
+  selectedLat = 36.8065;
+  selectedLng = 10.1815;
+
+  L.marker([selectedLat, selectedLng])
+    .addTo(map)
+    .bindPopup("🚗 Default location")
+    .openPopup();
+
+  map.on('click', function(e){
+    selectedLat = e.latlng.lat;
+    selectedLng = e.latlng.lng;
+
+    if(selectedMarker){
+      map.removeLayer(selectedMarker);
+    }
+
+    selectedMarker = L.marker([selectedLat, selectedLng])
+      .addTo(map)
+      .bindPopup("📍 Selected")
+      .openPopup();
+  });
+}
 window.onload = () => {
   user = JSON.parse(localStorage.getItem('user'));
   if (!user) return location='login.html';
@@ -124,6 +188,7 @@ window.onload = () => {
   startTime.value = toLocal(now);
   endTime.value = toLocal(later);
 
+  initMap();      // ✅ added
   loadPlaces();
 };
 
@@ -188,6 +253,11 @@ function calcPrice(){
 }
 
 async function confirmReservation(){
+  if (!selectedLat || !selectedLng) {
+    modalAlert.textContent = "Please select a location on the map!";
+    return;
+  }
+
   const data = await api('../api/reserve.php',{
     method:'POST',
     headers:{'Content-Type':'application/json'},
@@ -195,7 +265,9 @@ async function confirmReservation(){
       user_id:user.id,
       place_id:placeId,
       start_time:startTime.value.replace('T',' ')+':00',
-      end_time:endTime.value.replace('T',' ')+':00'
+      end_time:endTime.value.replace('T',' ')+':00',
+      lat: selectedLat,
+      lng: selectedLng
     })
   });
 
