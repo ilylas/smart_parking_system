@@ -13,8 +13,8 @@
 4. Open `pages/login.html` in your browser
 
 ### Default admin login
-- Email: `admin@smartpark.local`
-- Password: `Admin1234`
+- Email: `admin@test.com`
+- Password: `admin`
 
 ## Bug Fixes Applied
 
